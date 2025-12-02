@@ -1,6 +1,6 @@
 {
-  "name": "rimworld-source-agent",
-  "version": "0.3.0",
+  "name": "rimcp",
+  "version": "0.4.0",
   "main": "src/main.ts",
   "type": "module",
   "scripts": {
