@@ -43,7 +43,7 @@ async function build() {
   try {
     db = new Database(dbPath, { create: true })
   } catch (error) {
-    if (error.code !== 'SQLITE_CANTOPEN') throw error
+    if ((error as any).code !== 'SQLITE_CANTOPEN') throw error
 
     await mkdir(join(import.meta.dir, '../../dist'))
     db = new Database(dbPath, { create: true })
@@ -69,7 +69,7 @@ async function build() {
       .forEach(def => {
         insert.run({
           $defType: def.defType ?? 'Unknown',
-          $defName: def.defName,
+          $defName: def.defName!,
           $label: def.label ?? null,
           $payload: JSON.stringify(def),
         })
