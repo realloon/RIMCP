@@ -10,7 +10,7 @@ export async function searchSource(
   caseSensitive: boolean = false,
   filePattern?: string
 ): Promise<string> {
-  const args = ['--line-number', '--no-heading', '--color', 'never']
+  const args = ['--line-number', '--heading', '--color', 'never']
 
   // case sensitive
   if (caseSensitive) {
@@ -28,25 +28,34 @@ export async function searchSource(
   args.push('-e', query)
 
   try {
-    // exec search from the base directory to allow relative glob patterns to work
-    const result = await $`cd ${sandbox.getBasePath()} && rg ${args} .`.text()
+    // exec search from the base directory
+    const res = await $`cd ${sandbox.getBasePath()} && rg ${args} .`.text()
+    const result = res.trim()
 
-    if (!result || result.trim().length === 0) {
+    if (result.length === 0) {
       return 'No results found. Try adjusting your search query or file pattern.'
     }
 
     // lines limited
     const lines = result.split(/\r?\n/)
     if (lines.length > MAX_RESULT_LINES) {
-      const truncatedLines = lines.slice(0, MAX_RESULT_LINES)
-      const truncated = truncatedLines.join('\n')
-      return `${truncated}\n\n... (Results truncated: showing first ${MAX_RESULT_LINES} of ${lines.length} lines. Please refine your search query or add a more specific file pattern.)`
+      const truncated = lines.slice(0, MAX_RESULT_LINES)
+      truncated.push(
+        `\n[TRUNCATED] Showing ${MAX_RESULT_LINES}/${lines.length} results.`
+      )
+      truncated.push(
+        '(Tip: Refine your search query or add a more specific `file_pattern`.)'
+      )
+      return truncated.join('\n')
     }
 
     // size limited
     if (result.length > MAX_OUTPUT_SIZE) {
-      const truncated = result.substring(0, MAX_OUTPUT_SIZE)
-      return `${truncated}\n\n... (Results truncated due to size limit. Please refine your search query or add a more specific file pattern.)`
+      let truncated = result.substring(0, MAX_OUTPUT_SIZE)
+      truncated += '\n\n[TRUNCATED] Output size exceeded 100KB.'
+      truncated +=
+        '\n(Tip: Refine your search query or add a more specific `file_pattern`.)'
+      return truncated
     }
 
     return result
@@ -55,6 +64,8 @@ export async function searchSource(
       return 'No results found. Try adjusting your search query or file pattern.'
     }
 
-    throw new Error(`Search failed: ${error.message}`)
+    const errorMessage = error.stderr ? error.stderr.toString() : error.message
+
+    throw new Error(`Search failed: ${errorMessage}`)
   }
 }

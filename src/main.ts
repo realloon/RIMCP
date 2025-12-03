@@ -3,7 +3,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { PathSandbox } from './utils/path-sandbox'
 import { searchSource } from './tools/search'
-import { readRimWorldFile } from './tools/read-file'
+import { readFile } from './tools/read-file'
 import { listDirectory } from './tools/list-directory'
 import { getDefDetails } from './tools/get-def-details'
 
@@ -68,7 +68,7 @@ server.registerTool(
     },
   },
   async ({ relative_path, start_line, line_count }) => {
-    const content = await readRimWorldFile(
+    const content = await readFile(
       sandbox,
       relative_path,
       start_line,

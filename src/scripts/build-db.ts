@@ -42,8 +42,8 @@ async function build() {
 
   try {
     db = new Database(dbPath, { create: true })
-  } catch (error) {
-    if ((error as any).code !== 'SQLITE_CANTOPEN') throw error
+  } catch (error: any) {
+    if (error.code !== 'SQLITE_CANTOPEN') throw error
 
     await mkdir(join(import.meta.dir, '../../dist'))
     db = new Database(dbPath, { create: true })
