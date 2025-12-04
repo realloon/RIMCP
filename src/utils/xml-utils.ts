@@ -2,6 +2,7 @@ import { XMLParser, XMLBuilder } from 'fast-xml-parser'
 
 export const parser = new XMLParser({
   ignoreAttributes: false,
+  processEntities: false,
   isArray: (tag, path, _, isAttribute) => {
     if (isAttribute) return false
     if (tag === 'li') return true
