@@ -23,6 +23,9 @@ bun run start
 
 # Start development server with auto-reload
 bun run dev
+
+# Build/update the Def database (required after modifying XML files)
+bun run src/scripts/build-db.ts
 ```
 
 ## Architecture
@@ -49,7 +52,7 @@ bun run dev
 - Truncates results at 400 lines or 100KB to prevent context overflow
 - Line-based truncation preserves code integrity (no mid-line cuts)
 - Handles ripgrep exit codes (exit code 1 = no results found)
-- IMPORTANT: Uses Bun shell syntax: `$\`rg ${args}\`` where args is an array
+- IMPORTANT: Uses Bun shell syntax: `\`rg ${args}\`` where args is an array
 
 **Read File Tool** (`src/tools/read-file.ts`):
 - Reads complete file contents using `Bun.file()`
@@ -123,19 +126,47 @@ RimWorld Source MCP Agent running on Stdio...
 Base path: /absolute/path/to/assets/
 ```
 
-## Additional Development Notes
+## Database Management
 
-### Database Management
 - The SQLite database (`dist/defs.db`) is automatically built from XML Def files
 - Database contains resolved Def data with all inheritance relationships
 - Large database file (10MB+) is normal due to comprehensive Def resolution
+- **Important**: Run `bun run src/scripts/build-db.ts` after modifying XML Def files
 
-### Tool Usage Examples
+## Common Development Tasks
+
+### Adding New Tools
+1. Create new tool file in `src/tools/`
+2. Define Zod schema for input validation
+3. Implement tool handler with PathSandbox security
+4. Register tool in `src/main.ts` using `server.setRequestHandler`
+
+### Modifying Def Resolution
+1. Update `src/utils/def-resolver.ts` for inheritance logic
+2. Update `src/utils/xml-utils.ts` for XML parsing
+3. Rebuild database with `bun run src/scripts/build-db.ts`
+
+### Debugging Search Issues
+- Check ripgrep is installed: `rg --version`
+- Test search manually: `rg "pattern" assets/Sources/`
+- Verify PathSandbox isn't blocking paths
+
+## Tool Usage Examples
+
 - **search_rimworld_source**: Search for code patterns across RimWorld source
 - **read_rimworld_file**: Read specific files with 200KB limit
 - **list_directory**: Browse directory structure with pagination
 - **get_def_details**: Get resolved Def data with inheritance (e.g., "Bullet_SniperRifle")
 
-### Planned Features (from todo.md)
+## Planned Features (from todo.md)
+
 - `find_linked_defs`: Find all Defs that reference a specific defName
 - Enhanced `get_def_details` with path/key filtering for specific fields
+
+## Important Notes
+
+- **No test framework** is currently configured
+- **External dependencies**: Requires ripgrep (`rg`) to be installed
+- **File limits**: Respect the 200KB read limit and 400 line search limit
+- **Bun shell syntax**: Remember to use `\`command ${args}\`` format for shell commands
+- **ESNext modules**: All imports must include `.js` extension, even for TypeScript files
