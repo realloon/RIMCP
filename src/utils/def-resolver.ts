@@ -12,7 +12,7 @@ export interface Def extends Record<string, unknown> {
 
 export function processDefs(defs: Def[]): Def[] {
   const resolveSingleDef = createDefResolver(defs)
-  return defs.map(resolveSingleDef)
+  return defs.map(def => sortDefKeys(resolveSingleDef(def)))
 }
 
 // #region Helper
@@ -103,5 +103,35 @@ function mergeNodes(parent: XmlNode, child: XmlNode): XmlNode {
   }
 
   return child
+}
+
+function sortDefKeys(def: Def): Def {
+  const priorityKeys = ['defName', 'label', 'description']
+  const sorted: Def = {}
+
+  const keys = Object.keys(def).sort((a, b) => {
+    const indexA = priorityKeys.indexOf(a)
+    const indexB = priorityKeys.indexOf(b)
+
+    if (indexA !== -1 && indexB !== -1) {
+      return indexA - indexB
+    }
+
+    if (indexA !== -1) {
+      return -1
+    }
+
+    if (indexB !== -1) {
+      return 1
+    }
+
+    return a.localeCompare(b)
+  })
+
+  keys.forEach(key => {
+    sorted[key] = def[key]
+  })
+
+  return sorted
 }
 // #endregion
