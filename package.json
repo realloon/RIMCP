@@ -4,8 +4,9 @@
   "main": "src/main.ts",
   "type": "module",
   "scripts": {
+    "dev": "bun --watch run src/main.ts",
     "start": "bun run src/main.ts",
-    "dev": "bun --watch run src/main.ts"
+    "index": "bun run src/scripts/index-defs.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.23.0",
