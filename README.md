@@ -1,16 +1,18 @@
 # RimWorld Source MCP Server
 
+![](https://img.shields.io/badge/Bun-%23000000.svg?style=flat&logo=bun&logoColor=white) ![](https://img.shields.io/badge/ripgrep-%23000000.svg?style=flat&logo=rust&logoColor=white)
+
 A MCP server that provides RimWorld source code search and browsing capabilities.
 
-## Quick Setup
+## Get started
 
-Install dependencies:
+1. Install dependencies:
 
 ```sh
 bun install
 ```
 
-Add this MCP server:
+2. Add this MCP server:
 
 ```sh
 # Claude Code
@@ -20,7 +22,13 @@ claude mcp add --transport stdio rimworld-source -- bun run /path/to/this/repo
 gemini mcp add rimworld-source bun run /path/to/this/repo
 ```
 
-Replace `/path/to/this/repo` with the actual path to this repository on your system.
+**Replace** `/path/to/this/repo` with the actual path to this repository on your system.
+
+3. Build Defs index
+
+```sh
+bun run index
+```
 
 ## Available Tools
 
@@ -39,15 +47,6 @@ Once configured, the server provides four tools:
 ## Development
 
 ```sh
-# Install dependencies
-bun install
-
-# Build the Def database (required before first run)
-bun run src/scripts/build-db.ts
-
-# Run development server with auto-reload
-bun run dev
-
 # Run production server
 bun run start
 ```
