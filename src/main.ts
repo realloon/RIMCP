@@ -2,10 +2,13 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { PathSandbox } from './utils/path-sandbox'
-import { searchSource } from './tools/search'
-import { readFile } from './tools/read-file'
-import { listDirectory } from './tools/list-directory'
-import { getDefDetails } from './tools/get-def-details'
+import {
+  searchSource,
+  readFile,
+  listDirectory,
+  getDefDetails,
+  searchDefs,
+} from './tools'
 
 const sandbox = new PathSandbox('assets/')
 
@@ -151,6 +154,54 @@ server.registerTool(
 
     return {
       content: [{ type: 'text', text: results.join('\n\n') }],
+    }
+  }
+)
+
+// tool: search defs
+server.registerTool(
+  'search_defs',
+  {
+    description: 'Search Def indices by partial name or label.',
+    inputSchema: {
+      query: z.string().describe('Case-insensitive keyword.'),
+      defType: z
+        .string()
+        .optional()
+        .describe('Filter by type (e.g. "ThingDef", "JobDef").'),
+      limit: z.number().default(20).describe('Max results to return.'),
+    },
+  },
+  async ({ query, defType, limit }) => {
+    const { results, total } = searchDefs(query, defType, limit)
+
+    if (results.length === 0) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `No results found for "${query}". Try a shorter keyword or use 'search_rimworld_source' for code search.`,
+          },
+        ],
+      }
+    }
+
+    const formatted = results
+      .map(r => {
+        const labelStr = r.label ? ` (label: "${r.label}")` : ''
+        return `[${r.defType}] ${r.defName}${labelStr}`
+      })
+      .join('\n')
+
+    let finalOutput = formatted
+
+    if (results.length < total) {
+      finalOutput += `\n\n[TRUNCATED] Showing ${results.length}/${total} results.`
+      finalOutput += '\n(Tip: Increase `limit` or refine query.)'
+    }
+
+    return {
+      content: [{ type: 'text', text: finalOutput }],
     }
   }
 )
