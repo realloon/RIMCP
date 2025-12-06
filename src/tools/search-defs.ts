@@ -1,18 +1,21 @@
-import { db } from '../utils/db'
+import { type DefsTable, db } from '../utils/db'
 
-interface DefSearchResult {
-  defName: string
-  defType: string
-  label: string | null
+interface Params {
+  $q: string
+  $type?: string
+  $limit?: number
 }
+
+type ResultRow = Pick<DefsTable, 'defName' | 'defType' | 'label'>
 
 export function searchDefs(
   query: string,
   defType?: string,
   limit: number = 20
-): { results: DefSearchResult[]; total: number } {
+): { results: ResultRow[]; total: number } {
   let whereClause = '(defName LIKE $q OR label LIKE $q)'
-  const params: any = { $q: `%${query}%` }
+
+  const params: Params = { $q: `%${query}%` }
 
   if (defType) {
     whereClause += ' AND defType = $type'
@@ -20,7 +23,7 @@ export function searchDefs(
   }
 
   const countSql = `SELECT COUNT(*) as count FROM defs WHERE ${whereClause}`
-  const countRow = db.query(countSql).get(params) as { count: number }
+  const countRow = db.query<{ count: number }, any>(countSql).get(params)
   const total = countRow?.count ?? 0
 
   if (total === 0) {
@@ -34,8 +37,8 @@ export function searchDefs(
     LIMIT $limit
   `
   const results = db
-    .query(dataSql)
-    .all({ ...params, $limit: limit }) as DefSearchResult[]
+    .query<ResultRow, any>(dataSql)
+    .all({ ...params, $limit: limit })
 
   return { results, total }
 }
