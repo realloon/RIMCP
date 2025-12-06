@@ -1,6 +1,8 @@
-type XmlNode = any
+type Primitive = string | number | boolean | null | undefined
+type XmlNode = Primitive | XmlNode[] | { [key: string]: XmlNode }
+type XmlObject = Record<string, XmlNode>
 
-export interface Def extends Record<string, unknown> {
+interface Def extends XmlObject {
   defType?: string
   defName?: string
   label?: string
@@ -10,71 +12,72 @@ export interface Def extends Record<string, unknown> {
   '@_Inherit'?: string
 }
 
+// main
 export function processDefs(defs: Def[]): Def[] {
-  const resolveSingleDef = createDefResolver(defs)
-  return defs.map(def => sortDefKeys(resolveSingleDef(def)))
+  const resolver = new DefResolver(defs)
+  return defs.map(def => resolver.resolve(def))
 }
 
-// #region Helper
-function createDefResolver(allDefs: Def[]) {
-  const defMap = new Map(
-    allDefs.filter(d => d['@_Name']).map(d => [d['@_Name']!, d])
-  )
+class DefResolver {
+  private readonly defMap = new Map<string, Def>()
+  private readonly memo = new Map<string, Def>()
 
-  const memo = new Map<string, Def>()
+  constructor(defs: Def[]) {
+    defs.forEach(def => {
+      if (def['@_Name']) {
+        this.defMap.set(def['@_Name'], def)
+      }
+    })
+  }
 
-  const resolve = (name: string, stack: Set<string>): Def => {
-    if (memo.has(name)) return memo.get(name)!
+  public resolve(def: Def): Def {
+    if (!def['@_ParentName']) return sortDefKeys(def)
+
+    try {
+      const parentResolved = this.resolveByName(def['@_ParentName'], new Set())
+      const merged = mergeNodes(stripParentMeta(parentResolved), def) as Def
+      return sortDefKeys(merged)
+    } catch (error: any) {
+      console.warn(
+        `[DefResolver] Error resolving ${def.defName ?? 'unnamed'}: ${
+          error.message
+        }`
+      )
+      return def
+    }
+  }
+
+  private resolveByName(name: string, stack: Set<string>): Def {
+    if (this.memo.has(name)) return this.memo.get(name)!
 
     if (stack.has(name)) {
       throw new Error(
-        `Circular inheritance detected: ${Array.from(stack).join(
-          ' -> '
-        )} -> ${name}`
+        `Circular inheritance: ${Array.from(stack).join(' -> ')} -> ${name}`
       )
     }
 
-    const rawDef = defMap.get(name)
+    const rawDef = this.defMap.get(name)
     if (!rawDef) {
       throw new Error(`Parent definition "${name}" not found.`)
     }
 
     const parentName = rawDef['@_ParentName']
+    let resolvedDef: Def
 
-    const resolvedDef = parentName
-      ? mergeNodes(
-          stripParentMeta(resolve(parentName, new Set([...stack, name]))),
-          rawDef
-        )
-      : rawDef
+    if (parentName) {
+      const parentStack = new Set(stack).add(name)
+      const parent = this.resolveByName(parentName, parentStack)
+      resolvedDef = mergeNodes(stripParentMeta(parent), rawDef) as Def
+    } else {
+      resolvedDef = rawDef
+    }
 
-    memo.set(name, resolvedDef)
+    this.memo.set(name, resolvedDef)
     return resolvedDef
   }
-
-  return (def: Def) => {
-    if (!def['@_ParentName']) return def
-
-    try {
-      const parentResolved = resolve(def['@_ParentName'], new Set())
-      return mergeNodes(stripParentMeta(parentResolved), def)
-    } catch (error) {
-      console.warn((error as Error).message)
-      return def
-    }
-  }
 }
 
-function isObject(item: unknown) {
-  return item && typeof item === 'object' && !Array.isArray(item)
-}
-
-function getAllKeys(o1: Record<string, unknown>, o2: Record<string, unknown>) {
-  return Array.from(
-    new Set([...Object.keys(o1 ?? {}), ...Object.keys(o2 ?? {})])
-  )
-}
-
+// #region Helper
 function stripParentMeta(def: Def): Def {
   const { '@_Name': _n, '@_Abstract': _a, '@_ParentName': _p, ...rest } = def
   return rest
@@ -88,18 +91,18 @@ function mergeNodes(parent: XmlNode, child: XmlNode): XmlNode {
     return [...parent, ...child]
   }
 
-  if (isObject(parent) && isObject(child)) {
-    if (child['@_Inherit'] === 'False') {
-      return child
+  if (isXmlObject(parent) && isXmlObject(child)) {
+    const inheritAttr = child['@_Inherit'] as string | undefined
+    if (inheritAttr?.toLowerCase() === 'false') return child
+
+    const allKeys = new Set([...Object.keys(parent), ...Object.keys(child)])
+    const result: XmlObject = {}
+
+    for (const key of allKeys) {
+      result[key] = mergeNodes(parent[key], child[key])
     }
 
-    return getAllKeys(parent, child).reduce(
-      (acc, key) => ({
-        ...acc,
-        [key]: mergeNodes(parent[key], child[key]),
-      }),
-      {}
-    )
+    return result
   }
 
   return child
@@ -110,28 +113,22 @@ function sortDefKeys(def: Def): Def {
   const sorted: Def = {}
 
   const keys = Object.keys(def).sort((a, b) => {
-    const indexA = priorityKeys.indexOf(a)
-    const indexB = priorityKeys.indexOf(b)
+    const idxA = priorityKeys.indexOf(a)
+    const idxB = priorityKeys.indexOf(b)
 
-    if (indexA !== -1 && indexB !== -1) {
-      return indexA - indexB
-    }
-
-    if (indexA !== -1) {
-      return -1
-    }
-
-    if (indexB !== -1) {
-      return 1
-    }
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB
+    if (idxA !== -1) return -1
+    if (idxB !== -1) return 1
 
     return a.localeCompare(b)
   })
 
-  keys.forEach(key => {
-    sorted[key] = def[key]
-  })
+  keys.forEach(key => (sorted[key] = def[key]))
 
   return sorted
 }
-// #endregion
+
+function isXmlObject(item: unknown): item is XmlObject {
+  return Boolean(item) && typeof item === 'object' && !Array.isArray(item)
+}
+// #endregion Helper
