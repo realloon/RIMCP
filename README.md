@@ -38,6 +38,7 @@ Once configured, the server provides four tools:
 - `read_rimworld_file` - Read specific files with pagination
 - `list_directory` - List directory contents with pagination
 - `get_def_details` - Get resolved RimWorld Def data by defName
+- `search_defs` - Search through RimWorld Defs
 
 ## Requirements
 
